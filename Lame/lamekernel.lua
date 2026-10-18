@@ -63,11 +63,23 @@ newFilesMeta.__index = function(_,k)
 		if v[1] and type(v[1]) == "string" then
 			local s = v[1]:split(":")
 			if #s == 3 then
+				local disk = tonumber(s[1])
+				if not disk then
+					if s[1] == "any" then
+						error("fuck you")
+					else
+						for _,i in ipairs(files.getDisks()) do
+							if s[1] == getDiskID(i):sub(28,36) then
+								disk = i
+							end
+						end
+					end
+				end
 				v[1] = s[2]..":"..s[3]
 				if threeArgFunc[k] then
-					v[3] = tonumber(s[1])
+					v[3] = disk
 				else
-					v[2] = tonumber(s[1])
+					v[2] = disk
 				end
 			end
 		end
@@ -85,14 +97,25 @@ _G.files = newFiles
 --deep copy system to seperate environments
 local function deepCopyTable(oldTab)
     local tab = {}
-    for i,v in pairs(oldTab) do
+    for k,v in pairs(oldTab) do
         if type(v) ~= "table" then
-           tab[i] = v
-        elseif i ~= "_G" then
-            tab[i] = deepCopyTable(v)
+           tab[k] = v
+        elseif k ~= "_G" then
+            tab[k] = deepCopyTable(v)
         end
     end
-	setmetatable(tab,getmetatable(oldTab))
+	local oldm = getmetatable(oldTab)
+	if oldm then
+		local m = {}
+		for k,v in pairs(oldm) do
+			if type(v) ~= "table" then
+				m[k] = v
+			else
+				m[k] = deepCopyTable(v)
+			end
+		end
+		setmetatable(tab,m)
+	end
     return tab
 end
 _G.table.copy = deepCopyTable
@@ -118,8 +141,9 @@ _G.sleep = sleep
 -- Loads our APIs. --
 ---------------------
 
+_G.CWD = _SYSTEM_DISK..":/"
 local globalTable = {}
-_G.globals = globalTable
+_G.mainGlobalTable = globalTable
 
 for _,v in pairs(files.getChildren(_SYSTEM_DISK..":Lame/apis")) do
 	if files.isFile(_SYSTEM_DISK..":Lame/apis/"..v) then
@@ -128,6 +152,27 @@ for _,v in pairs(files.getChildren(_SYSTEM_DISK..":Lame/apis")) do
 		print("Loaded API "..name.."!")
 	end
 end
+
+local globals = table.copy(globalTable)
+local globalmeta = {
+	__index = function(k)
+		if k == "CWD" then
+			return CWD
+		else
+			return rawget(globals,k)
+		end
+	end,
+	__newindex = function(k,v)
+		if k == "CWD" then
+			_G.CWD = CWD
+		end
+		rawset(globals,k,v)
+	end
+}
+setmetatable(globals,globalmeta)
+_G.globals = globals
+
+globals.term.write("Woah!\nThe terminal loads!\tIsn't that cool?")	
 
 while true do
 	coroutine.yield()
