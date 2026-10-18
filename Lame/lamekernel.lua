@@ -52,7 +52,8 @@ local newFiles = {}
 local newFilesMeta = {}
 local threeArgFunc = {
 	["open"] = true,
-	["setPartitionHidden"] = true
+	["setPartitionHidden"] = true,
+	["move"] = true --not in NEET but will be soon
 }
 newFilesMeta.__index = function(_,k)
 	if not oldFiles[k] then
@@ -66,11 +67,17 @@ newFilesMeta.__index = function(_,k)
 				local disk = tonumber(s[1])
 				if not disk then
 					if s[1] == "any" then
-						error("fuck you")
+						for _,i in ipairs(files.getDisks()) do
+							if files.exists(part..":"..path,i) then
+								disk = i
+								break
+							end
+						end
 					else
 						for _,i in ipairs(files.getDisks()) do
-							if s[1] == getDiskID(i):sub(28,36) then
+							if s[1] == files.getDiskID(i):sub(28,36) then
 								disk = i
+								break
 							end
 						end
 					end
@@ -172,7 +179,7 @@ local globalmeta = {
 setmetatable(globals,globalmeta)
 _G.globals = globals
 
-globals.term.write("Woah!\nThe terminal loads!\tIsn't that cool?")	
+globals.print("Bazinga")
 
 while true do
 	coroutine.yield()

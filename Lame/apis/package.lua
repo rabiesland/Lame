@@ -8,17 +8,17 @@ package.loaded = {}
 package.path = "./?.lua;./?/init.lua"
 
 function package.searchpath(name,path,sep,rep)
-	local conf = package.config:replace("\r",""):split("\n")
+	local conf = package.config:gsub("\r",""):split("\n")
 	if not sep then
 		sep = "."
 	end
 	if not rep then
 		rep = conf[1]
 	end
-	local pathSplit = package.path:replace("./",path):split(sep)
+	local pathSplit = package.path:gsub("./",path):split(sep)
 	local tried = {}
 	for _,v in ipairs(pathSplit) do
-		local p = v:replace(conf[3],name:replace(sep,rep))
+		local p = v:gsub(conf[3],name:gsub(sep,rep))
 		if files.isFile(p) then
 			local suc,resp = pcall(files.open(p))
 			if suc then
