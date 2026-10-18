@@ -162,10 +162,10 @@ function _G.addProgramToStack(...)
 		local worked, progFunc = pcall(coroutine.create,function()
 			local success, response = xpcall(prog, function(errObj) 
 				globals.print("Program exited with an error! Err="..errObj)
-				globals.print(debug.traceback())
+				globals.print(debug.traceback(nil,2))
 			end,table.unpack(args))
 		end)
-		debug.sethook(progFunc,coroutine.yield,"l",100)
+		--debug.sethook(progFunc,function() coroutine.yield() end,"l",100)
 		table.insert(programStack,{
 			e = {},
 			c = progFunc
