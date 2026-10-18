@@ -1,3 +1,3 @@
 return "requestNeato", function()
-	return false
+	return true
 end
