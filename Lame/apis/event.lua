@@ -72,7 +72,7 @@ function eventApi.pull(filter,timeout)
 			if #eventTab ~= 0 then
 				local event = table.remove(eventTab,1)
 				if event[1] == filter then
-					return event
+					return table.unpack(event)
 				end
 			end
 			coroutine.yield()
@@ -85,7 +85,7 @@ function eventApi.pull(filter,timeout)
 				end
 			end
 			if #eventTab ~= 0 then
-				return table.remove(eventTab,1)
+				return table.unpack(table.remove(eventTab,1))
 			end
 		end
 	end
