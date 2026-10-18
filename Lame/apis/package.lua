@@ -44,7 +44,7 @@ package.searchers = {
 			local f = files.open(path,"r")
 			local dat = f.read("a")
 			f.close()
-			local l, err = load(dat,path,globals)
+			local l, err = load(dat,path,"bt",globals)
 			if l then
 				return l
 			else

@@ -15,25 +15,25 @@ _G._SYSTEM_DISK = sysDisk
 
 --simplistic version of require since we can't pull require in yet.
 local function import(path)
-    if files.exists(path) then
-        local datFile = files.open(path,"r")
-        local dat = datFile.read("a")
+	if files.exists(path) then
+		local datFile = files.open(path,"r")
+		local dat = datFile.read("a")
 		datFile.close()
-        local prog,err = load(dat,path)
-        if prog then
-            local worked = {pcall(prog)}
-            if not worked[1] then
-                error("Failure while loading program "..path.."! Err="..worked[2]);
-            else
+		local prog,err = load(dat,path)
+		if prog then
+			local worked = {pcall(prog)}
+			if not worked[1] then
+				error("Failure while loading program "..path.."! Err="..worked[2]);
+			else
 				table.remove(worked,1)
-                return table.unpack(worked)
-            end
-        else
-            error("Failed to load program "..path.."! Err="..err);
-        end
-    else
-        error("File "..path.." does not exist!")
-    end
+				return table.unpack(worked)
+			end
+		else
+			error("Failed to load program "..path.."! Err="..err);
+		end
+	else
+		error("File "..path.." does not exist!")
+	end
 end
 _G.import = import
 
@@ -103,14 +103,14 @@ _G.files = newFiles
 
 --deep copy system to seperate environments
 local function deepCopyTable(oldTab)
-    local tab = {}
-    for k,v in pairs(oldTab) do
-        if type(v) ~= "table" then
-           tab[k] = v
-        elseif k ~= "_G" then
-            tab[k] = deepCopyTable(v)
-        end
-    end
+	local tab = {}
+	for k,v in pairs(oldTab) do
+		if type(v) ~= "table" then
+		   tab[k] = v
+		elseif k ~= "_G" then
+			tab[k] = deepCopyTable(v)
+		end
+	end
 	local oldm = getmetatable(oldTab)
 	if oldm then
 		local m = {}
@@ -123,7 +123,7 @@ local function deepCopyTable(oldTab)
 		end
 		setmetatable(tab,m)
 	end
-    return tab
+	return tab
 end
 _G.table.copy = deepCopyTable
 
@@ -131,22 +131,63 @@ local function sleep(t)
 	if t == 0 then
 		t = nil
 	end
-    local start = chip.getUnixTime()
-    if not t then
-       yield()
-    else
-        local newTime = chip.getUnixTime()+t
-        while chip.getUnixTime() < newTime do
-            yield()
-        end
-    end
-    return chip.getUnixTime()-start
+	local start = chip.getUnixTime()
+	if not t then
+	   coroutine.yield()
+	else
+		local newTime = chip.getUnixTime()+t
+		while chip.getUnixTime() < newTime do
+			coroutine.yield()
+		end
+	end
+	return chip.getUnixTime()-start
 end
 _G.sleep = sleep
 
----------------------
--- Loads our APIs. --
----------------------
+_G.programStack = {}
+
+local function addProgramToStack(...)
+	local args = {...}
+	local path = table.remove(args,1)
+	local datFile = files.open(path,"r")
+	local dat = datFile.read("a")
+	datFile.close()
+	local prog,err = load(dat,path,"bt",globals)
+	if prog then
+		local worked, progFunc = pcall(coroutine.create,function()
+			local success, response = pcall(prog,table.unpack(args))
+			if not success then
+				globals.print("Program exited with an error! Err="..response)
+			end
+		end)
+		table.insert(programStack,{
+			e = {},
+			c = progFunc
+		})
+	else
+		error("Failed to load program "..path.."! Err="..err);
+	end
+end
+
+local cats = {
+    "unlabeled",
+    "user",
+    "system",
+    "network",
+    "peripheral",
+    "compatibility"
+}
+local function getNextEvent()
+    local ret = {}
+    for _,v in ipairs(cats) do
+         ret[v] = event.getFirst(v)
+    end
+    return ret
+end
+
+--------------------
+-- Loads our APIs --
+--------------------
 
 _G.CWD = _SYSTEM_DISK..":/"
 local globalTable = {}
@@ -179,8 +220,40 @@ local globalmeta = {
 setmetatable(globals,globalmeta)
 _G.globals = globals
 
-globals.print("Bazinga")
+----------------
+-- Event Loop --
+----------------
+
+addProgramToStack("hdd:Lame/cmd.lua")
 
 while true do
-	coroutine.yield()
+	local eTable = getNextEvent()
+	local neatoEvents = {}
+	for _,v in pairs(eTable) do
+		local e = {eventToNeato(v)}
+		for i=1,#e do
+			table.insert(neatoEvents,e[i])
+		end
+	end
+	for _,v in pairs(programStack) do
+		for _,v2 in ipairs(neatoEvents) do
+			table.insert(v.e,v2)
+		end
+	end
+	local stack = #programStack
+	local curProgTab = programStack[stack]
+	if not curProgTab then
+		while true do
+			coroutine.yield()
+		end
+	end
+	local curProgCo = curProgTab.c
+	if coroutine.status(curProgCo) == "dead" then
+        table.remove(programStack,stack)
+    elseif coroutine.status(curProgCo) == "suspended" then
+        coroutine.resume(curProgCo)
+    end
+	if #neatoEvents ~= 0 then
+		coroutine.yield()
+	end
 end
