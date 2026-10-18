@@ -2,7 +2,8 @@
 _G.LAMEVERSION = "1.0"
 
 _G.NEATOAPIS = {
-	core = 3
+	core = 3,
+	["ext.env"] = 1
 }
 
 print("Early init started!")
@@ -146,7 +147,7 @@ _G.sleep = sleep
 
 _G.programStack = {}
 
-local function addProgramToStack(...)
+function _G.addProgramToStack(...)
 	local args = {...}
 	local path = table.remove(args,1)
 	local datFile = files.open(path,"r")
@@ -160,6 +161,7 @@ local function addProgramToStack(...)
 				globals.print("Program exited with an error! Err="..response)
 			end
 		end)
+		debug.sethook(progFunc,coroutine.yield,"l",100)
 		table.insert(programStack,{
 			e = {},
 			c = progFunc
@@ -185,20 +187,58 @@ local function getNextEvent()
     return ret
 end
 
+function _G.apiAssert(cond,msg)
+	if not cond then
+		error(msg,3)
+	end
+end
+
 --------------------
 -- Loads our APIs --
 --------------------
+
+local vanillaGlobals = {
+	"rawget",
+	"rawequal",
+	"rawlen",
+	"rawset",
+	"setmetatable",
+	"getmetatable",
+	"tostring",
+	"tonumber",
+	"pcall",
+	"xpcall",
+	"type",
+	"load",
+	"pairs",
+	"ipairs",
+	"next",
+	"select",
+	"error",
+	"assert",
+	"_VERSION",
+	"utf8",
+	"table",
+	"math",
+	"bit32",
+	"string",
+	"coroutine"
+}
 
 _G.CWD = _SYSTEM_DISK..":/"
 local globalTable = {}
 _G.mainGlobalTable = globalTable
 
-for _,v in pairs(files.getChildren(_SYSTEM_DISK..":Lame/apis")) do
+for _,v in ipairs(files.getChildren(_SYSTEM_DISK..":Lame/apis")) do
 	if files.isFile(_SYSTEM_DISK..":Lame/apis/"..v) then
 		local name,api = import(_SYSTEM_DISK..":Lame/apis/"..v)
 		globalTable[name] = api
 		print("Loaded API "..name.."!")
 	end
+end
+
+for _,v in ipairs(vanillaGlobals) do
+	globalTable[v] = _G[v]
 end
 
 local globals = table.copy(globalTable)
@@ -218,6 +258,8 @@ local globalmeta = {
 	end
 }
 setmetatable(globals,globalmeta)
+globals._G = globals
+globals.CWD = CWD
 _G.globals = globals
 
 ----------------
@@ -235,11 +277,22 @@ while true do
 			table.insert(neatoEvents,e[i])
 		end
 	end
-	for _,v in pairs(programStack) do
-		for _,v2 in ipairs(neatoEvents) do
-			table.insert(v.e,v2)
+	while #neatoEvents ~= 0 do
+		for _,v in pairs(programStack) do
+			for _,v2 in ipairs(neatoEvents) do
+				table.insert(v.e,v2)
+			end
+		end
+		eTable = getNextEvent()
+		neatoEvents = {}
+		for _,v in pairs(eTable) do
+			local e = {eventToNeato(v)}
+			for i=1,#e do
+				table.insert(neatoEvents,e[i])
+			end
 		end
 	end
+	
 	local stack = #programStack
 	local curProgTab = programStack[stack]
 	if not curProgTab then

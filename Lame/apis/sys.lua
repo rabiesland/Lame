@@ -23,9 +23,7 @@ function sys.hasExtension(ext,ver)
 end
 
 function sys.sleep(t)
-	if t and t < 0 then
-		return nil, "EINVAL", "you can't time travel doofus"
-	end
+	apiAssert(t == nil or (type(t) == "number" and t >= 0), "Invalid time argument!")
 	sleep(t)
 end
 

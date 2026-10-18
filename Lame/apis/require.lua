@@ -1,4 +1,5 @@
 return "require", function(name)
+	apiAssert(type(name) == "string","Name has to be a string!")
 	local package = mainGlobalTable.package
 	local returns = {}
 	for _,v in ipairs(package.searchers) do

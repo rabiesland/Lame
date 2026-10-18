@@ -35,6 +35,7 @@ function _G.parentOfPathExists(path)
 end
 
 function fs.list(path)
+	apiAssert(type(path) == "string","Path has to be a string!")
 	if fs.exists(path) then
 		if fs.isFile(path) then
 			return nil, "ENOENT", "The path is a file!"
@@ -49,6 +50,7 @@ function fs.list(path)
 end
 
 function fs.makeDir(path)
+	apiAssert(type(path) == "string","Path has to be a string!")
 	local exists, isDir = parentOfPathExists(path)
 	if not exists then
 		return nil, "ENOENT", "Parent doesn't exist!"
@@ -66,6 +68,7 @@ function fs.makeDir(path)
 end
 
 function fs.delete(path)
+	apiAssert(type(path) == "string","Path has to be a string!")
 	if not fs.exists(path) then
 		return nil, "ENOENT", "Path doesn't exist!"
 	end
@@ -86,6 +89,10 @@ function fs.delete(path)
 end
 
 function fs.resolve(path)
+	apiAssert(type(path) == "string","Path has to be a string!")
+	if path == "." then
+		path = "./"
+	end
 	if path:sub(1,2) == "./" then
 		path = CWD..path:sub(3)
 	end
@@ -128,6 +135,8 @@ function fs.resolve(path)
 end
 
 function fs.rename(from,to) --doesn't work yet
+	apiAssert(type(from) == "string","Path 1 has to be a string!")
+	apiAssert(type(to) == "string","Path 2 has to be a string!")
 	from = fs.resolve(from)
 	to = fs.resolve(to)
 	local exists, isDir = parentOfPathExists(from)
@@ -135,9 +144,6 @@ function fs.rename(from,to) --doesn't work yet
 		return nil, "ENOENT", "Parent 1 doesn't exist!"
 	elseif not isDir then
 		return nil, "ENOTDIR", "Parent 1 is a file!"
-	end
-	if fs.exists(from) then
-		return nil, "EEXIST", "Path 1 already exists!"
 	end
 	
 	local exists, isDir = parentOfPathExists(to)
@@ -159,6 +165,7 @@ function fs.rename(from,to) --doesn't work yet
 end
 
 function fs.stat(path)
+	apiAssert(type(path) == "string","Path has to be a string!")
 	if fs.exists(path) then
 		return {
 			type = fs.isFile(path) and "file" or "dir"
@@ -170,6 +177,7 @@ end
 fs.getDisks = files.getDisks
 
 function fs.getPartitions(disk1)
+	apiAssert(type(path) == "string" or type(path) == "number","Path has to be a slot number or disk id!")
 	local disk = tonumber(disk1)
 	if not disk then
 		for _,i in ipairs(files.getDisks()) do
@@ -211,6 +219,7 @@ local point = {
 }
 
 function fs.getPoint(p)
+	apiAssert(type(path) == "string","Point has to be a string!")
 	if point[p] == true then
 		return fs.resolve(CWD)
 	elseif point[p] then
@@ -234,15 +243,9 @@ function handle.read(self,amt)
 	local f = rawget(self,"__Real_Handle")
 	local m = rawget(self,"__File_Mode")
 	local c = rawget(self,"__CLOSED")
-	if type(amt) ~= "number" and (amt ~= "a" and amt ~= "l") then
-		return nil, "EINVAL", "Bad read amount"
-	end
-	if m ~= "r" then
-		return nil, "EBADF", "Cannot read write handle"
-	end
-	if c then
-		return nil, "EIO", "Handle closed!"
-	end
+	apiAssert(type(amt) == "number" or (amt == "a" or amt == "l"),"Bad read amount") 
+	apiAssert(m == "r", "Cannot read write handle")
+	apiAssert(not c, "Handle closed!")
 	local suc,dat = pcall(f.read,amt)
 	if not suc then
 		return nil,"EIO",dat
@@ -254,12 +257,8 @@ function handle.write(self,dat)
 	local f = rawget(self,"__Real_Handle")
 	local m = rawget(self,"__File_Mode")
 	local c = rawget(self,"__CLOSED")
-	if m ~= "w" then
-		return nil, "EBADF", "Cannot write read handle"
-	end
-	if c then
-		return nil, "EIO", "Handle closed!"
-	end
+	apiAssert(m == "w", "Cannot read write handle")
+	apiAssert(not c, "Handle closed!")
 	local suc,err = pcall(f.write,dat)
 	if not suc then
 		return nil,"EIO",err
@@ -270,9 +269,7 @@ end
 function handle.seek(self,w,o)
 	local f = rawget(self,"__Real_Handle")
 	local c = rawget(self,"__CLOSED")
-	if c then
-		return nil, "EIO", "Handle closed!"
-	end
+	apiAssert(not c, "Handle closed!")
 	if not w and not o then
 		local suc,pos = pcall(f.seek)
 		if not suc then
@@ -294,9 +291,7 @@ end
 function handle.flush(self)
 	local f = rawget(self,"__Real_Handle")
 	local c = rawget(self,"__CLOSED")
-	if c then
-		return nil, "EIO", "Handle closed!"
-	end
+	apiAssert(not c, "Handle closed!")
 	local suc,err =  pcall(f.flush)
 	if not err then
 		return nil,"EIO",err
@@ -307,9 +302,7 @@ end
 function handle.close(self)
 	local f = rawget(self,"__Real_Handle")
 	local c = rawget(self,"__CLOSED")
-	if c then
-		return nil, "EIO", "Handle already closed!"
-	end
+	apiAssert(not c, "Handle closed!")
 	local suc,err =  pcall(f.close)
 	if not err then
 		return nil,"EIO",err
@@ -332,10 +325,8 @@ local function createFakeHandle(handle,mode)
 end
 
 function fs.open(path,m)
+	apiAssert(type(path) == "string","Path has to be a string!")
 	m = m:sub(1,1)
-	if m ~= "r" and m ~= "r" and m ~= "a" then
-		return nil, "EINVAL", "Invalid mode!"
-	end
 	if m == "w" or m == "a" then
 		local exists, isDir = parentOfPathExists(path)
 		if not exists then
@@ -343,10 +334,12 @@ function fs.open(path,m)
 		elseif not isDir then
 			return nil, "ENOTDIR", "Parent is a file!"
 		end
-	else
+	elseif mode == "r" then
 		if not fs.exists(path) then
 			return nil, "ENOENT", "Tried to read non-existant file!"
 		end
+	else
+		error("Invalid file operation mode!",2)
 	end
 	if fs.isDir(path) then
 		return nil, "EISDIR", "Path is directory!"
