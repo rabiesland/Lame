@@ -3,7 +3,8 @@ _G.LAMEVERSION = "1.0"
 
 _G.NEATOAPIS = {
 	core = 3,
-	["ext.env"] = 1
+	["ext.env"] = 1,
+	["x.lame.input"] = 1
 }
 
 print("Early init started!")
@@ -73,6 +74,9 @@ newFilesMeta.__index = function(_,k)
 								disk = i
 								break
 							end
+						end
+						if not disk then
+							error("Cannot resolve \"Any\" path!")
 						end
 					else
 						for _,i in ipairs(files.getDisks()) do
@@ -156,10 +160,10 @@ function _G.addProgramToStack(...)
 	local prog,err = load(dat,path,"bt",globals)
 	if prog then
 		local worked, progFunc = pcall(coroutine.create,function()
-			local success, response = pcall(prog,table.unpack(args))
-			if not success then
-				globals.print("Program exited with an error! Err="..response)
-			end
+			local success, response = xpcall(prog, function(errObj) 
+				globals.print("Program exited with an error! Err="..errObj)
+				globals.print(debug.traceback())
+			end,table.unpack(args))
 		end)
 		debug.sethook(progFunc,coroutine.yield,"l",100)
 		table.insert(programStack,{
@@ -273,8 +277,10 @@ while true do
 	local neatoEvents = {}
 	for _,v in pairs(eTable) do
 		local e = {eventToNeato(v)}
-		for i=1,#e do
-			table.insert(neatoEvents,e[i])
+		if #e ~= 0 and e[1] ~= nil then
+			for i=1,#e do
+				table.insert(neatoEvents,e[i])
+			end
 		end
 	end
 	while #neatoEvents ~= 0 do
@@ -287,8 +293,10 @@ while true do
 		neatoEvents = {}
 		for _,v in pairs(eTable) do
 			local e = {eventToNeato(v)}
-			for i=1,#e do
-				table.insert(neatoEvents,e[i])
+			if #e ~= 0 and e[1] ~= nil then
+				for i=1,#e do
+					table.insert(neatoEvents,e[i])
+				end
 			end
 		end
 	end
@@ -306,7 +314,5 @@ while true do
     elseif coroutine.status(curProgCo) == "suspended" then
         coroutine.resume(curProgCo)
     end
-	if #neatoEvents ~= 0 then
-		coroutine.yield()
-	end
+	coroutine.yield()
 end

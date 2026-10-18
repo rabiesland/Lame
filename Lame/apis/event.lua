@@ -12,18 +12,21 @@ local keyCodes = {
 }
 local pressedKeys = {}
 
-function _G.eventToNeato(...)
-	local args = {...}
-	local name = table.remove(args,1)
+function _G.eventToNeato(args)
+	local event = table.remove(args,1)
 	if event == "keyPressed" then
 		local char
-		if char then
-			char = args[2]:lower()
+		if args[2] then
+			char = args[2]
 		end
-		local name = keyCodes[args[1]] or char or "x."..args[1]
+		local name = keyCodes[args[1]] or char:lower() or "x."..args[1]
 		local pressed = pressedKeys[args[1]] or false
 		pressedKeys[args[2]] = true
-		return {"key", name, pressed}, {"char",char}
+		if char ~= nil then
+			return {"key", name, pressed},{"char",char}
+		else
+			return {"key", name, pressed}
+		end
 	elseif event == "keyReleased" then
 		local name = keyCodes[args[1]] or args[2] or "x."..args[1]
 		pressedKeys[args[1]] = nil
@@ -62,32 +65,19 @@ end
 function eventApi.pull(filter,timeout)
 	local eventTab = getCurrentProgTab().e
 	local started = chip.getUnixTime()
-	if filter then
-		while true do
-			if timeout then
-				if chip.getUnixTime() > started+timeout then
-					return nil
-				end
-			end
-			if #eventTab ~= 0 then
-				local event = table.remove(eventTab,1)
-				if event[1] == filter then
-					return table.unpack(event)
-				end
-			end
-			coroutine.yield()
-		end
-	else
-		while true do
-			if timeout then
-				if chip.getUnixTime() > started+timeout then
-					return nil
-				end
-			end
-			if #eventTab ~= 0 then
-				return table.unpack(table.remove(eventTab,1))
+	while true do
+		if timeout then
+			if chip.getUnixTime() > started+timeout then
+				return nil
 			end
 		end
+		if #eventTab ~= 0 then
+			local event = table.remove(eventTab,1)
+			if filter == nil or event[1] == filter then
+				return table.unpack(event)
+			end
+		end
+		coroutine.yield()
 	end
 end
 

@@ -1,6 +1,6 @@
 local envVars = {}
 local env = {
-	path=_SYSTEM_DISK..":Lame/Sys/;./"
+	path=_SYSTEM_DISK..":Lame/sys/;./"
 }
 
 function env.get(k)

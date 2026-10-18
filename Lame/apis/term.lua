@@ -147,10 +147,10 @@ local handleChar = {
 	
 	
 	[32] = function() -- Space
-		x+=1
 		if termTable[y][x] then
 			blankChar(x,y)
 		end
+		x+=1
 	end
 }
 
