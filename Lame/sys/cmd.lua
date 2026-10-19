@@ -102,7 +102,7 @@ local function runCommand(i)
 	local progPath = resolveProgramPath(prog:lower())
 	local alias = aliasExists(prog:lower())
 	if not progPath and alias then
-		local suc, err = pcall(launchProgram,alias,table.unpack(sp))
+		local suc, err = pcall(os.execute,alias,table.unpack(sp))
 		if not suc then
 			print(err)
 		end
