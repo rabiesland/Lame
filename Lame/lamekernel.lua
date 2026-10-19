@@ -13,8 +13,8 @@ _G.NEATOAPIS = {
 print("Early init started!")
 local sysDisk = ({...})[1] or "hdd" --assume the bootloader was replaced with a braindead vibecoded implementation that can't pass basic arguments
 _G._SYSTEM_DISK = sysDisk
-
 _G._START_TIME = chip.getTime()
+
 -----------------------------------------------------------------------------------------------------
 -- This defines internal functions used internally. Functionally the same as TRASHY's program API. --
 -----------------------------------------------------------------------------------------------------
@@ -280,10 +280,7 @@ _G.globals = globals
 -- Event Loop --
 ----------------
 
-xpcall(addProgramToStack, function(errObj) 
-				globals.print("Program exited with an error! Err="..errObj)
-				globals.print(debug.traceback(nil,2))
-			end,"hdd:Lame/sys/cmd.lua")
+pcall(addProgramToStack, "hdd:Lame/sys/cmd.lua")
 while true do
 	local eTable = getNextEvent()
 	local neatoEvents = {}
@@ -316,9 +313,9 @@ while true do
 	local stack = #programStack
 	local curProgTab = programStack[stack]
 	if not curProgTab then
-		while true do
-			coroutine.yield()
-		end
+		globalTable.print("Main process died! Restarting...")
+		pcall(addProgramToStack, "hdd:Lame/sys/cmd.lua")
+		continue
 	end
 	local curProgCo = curProgTab.c
 	if coroutine.status(curProgCo) == "dead" then

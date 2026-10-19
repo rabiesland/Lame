@@ -21,7 +21,11 @@ function _G.eventToNeato(args)
 		end
 		local name = keyCodes[args[1]] or char:lower() or "x."..args[1]
 		local pressed = pressedKeys[args[1]] or false
-		pressedKeys[args[2]] = true
+		pressedKeys[args[1]] = true
+		if pressedKeys[132] and name == "t" then
+			table.remove(programStack)
+			mainGlobalTable.print("Terminated.")
+		end
 		if char ~= nil then
 			return {"key", name, pressed},{"char",char}
 		else
