@@ -4,13 +4,17 @@ _G.LAMEVERSION = "1.0"
 _G.NEATOAPIS = {
 	core = 3,
 	["ext.env"] = 1,
-	["x.lame.input"] = 1
+	["ext.system"] = 1,
+	["ext.time"] = 1,
+	["x.lame.input"] = 1,
+	["x.lame.os"] = 1
 }
 
 print("Early init started!")
 local sysDisk = ({...})[1] or "hdd" --assume the bootloader was replaced with a braindead vibecoded implementation that can't pass basic arguments
 _G._SYSTEM_DISK = sysDisk
 
+_G._START_TIME = chip.getTime()
 -----------------------------------------------------------------------------------------------------
 -- This defines internal functions used internally. Functionally the same as TRASHY's program API. --
 -----------------------------------------------------------------------------------------------------
@@ -151,29 +155,7 @@ _G.sleep = sleep
 
 _G.programStack = {}
 
-function _G.addProgramToStack(...)
-	local args = {...}
-	local path = table.remove(args,1)
-	local datFile = files.open(path,"r")
-	local dat = datFile.read("a")
-	datFile.close()
-	local prog,err = load(dat,path,"bt",globals)
-	if prog then
-		local worked, progFunc = pcall(coroutine.create,function()
-			local success, response = xpcall(prog, function(errObj) 
-				globals.print("Program exited with an error! Err="..errObj)
-				globals.print(debug.traceback(nil,2))
-			end,table.unpack(args))
-		end)
-		--debug.sethook(progFunc,function() coroutine.yield() end,"l",100)
-		table.insert(programStack,{
-			e = {},
-			c = progFunc
-		})
-	else
-		error("Failed to load program "..path.."! Err="..err);
-	end
-end
+
 
 local cats = {
     "unlabeled",
@@ -194,6 +176,34 @@ end
 function _G.apiAssert(cond,msg)
 	if not cond then
 		error(msg,3)
+	end
+end
+
+function _G.addProgramToStack(...)
+	local args = {...}
+	apiAssert(#args > 0, "os.execute requires args to be called!")
+	local path = table.remove(args,1)
+	if not mainGlobalTable.fs.isFile(path) then
+		return nil, "ENOENT", "File has to exist and be a valid file!"
+	end
+	local datFile = mainGlobalTable.fs.open(path,"r")
+	local dat = datFile:read("a")
+	datFile:close()
+	local prog,err = load(dat,path,"bt",globals)
+	if prog then
+		local worked, progFunc = pcall(coroutine.create,function()
+			local success, response = xpcall(prog, function(errObj) 
+				globals.print("Program exited with an error! Err="..errObj)
+				globals.print(debug.traceback(nil,2))
+			end,table.unpack(args))
+		end)
+		--debug.sethook(progFunc,function() coroutine.yield() end,"l",100)
+		table.insert(programStack,{
+			e = {},
+			c = progFunc
+		})
+	else
+		return nil, "EIO", "Failed to load program "..path.."! Err="..err
 	end
 end
 
@@ -247,14 +257,14 @@ end
 
 local globals = table.copy(globalTable)
 local globalmeta = {
-	__index = function(k)
+	__index = function(_,k)
 		if k == "CWD" then
-			return CWD
+			return _G.CWD
 		else
 			return rawget(globals,k)
 		end
 	end,
-	__newindex = function(k,v)
+	__newindex = function(_,k,v)
 		if k == "CWD" then
 			_G.CWD = CWD
 		end
@@ -270,8 +280,10 @@ _G.globals = globals
 -- Event Loop --
 ----------------
 
-addProgramToStack("hdd:Lame/cmd.lua")
-
+xpcall(addProgramToStack, function(errObj) 
+				globals.print("Program exited with an error! Err="..errObj)
+				globals.print(debug.traceback(nil,2))
+			end,"hdd:Lame/sys/cmd.lua")
 while true do
 	local eTable = getNextEvent()
 	local neatoEvents = {}

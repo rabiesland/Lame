@@ -34,6 +34,15 @@ for i=0,255 do
 end
 f.close()
 local function generateFontFromColor(r,g,b,a)
+	if r == 37 then
+		r = math.random(1,2) == 1 and 36 or 38
+	end
+	if g == 37 then
+		g = math.random(1,2) == 1 and 36 or 38
+	end
+	if b == 37 then
+		b = math.random(1,2) == 1 and 36 or 38
+	end
 	local color = string.char(r, g, b, a)
 	local newFont = table.create(255,1)
 	for i,v in pairs(fonTable) do

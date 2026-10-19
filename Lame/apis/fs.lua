@@ -313,15 +313,18 @@ function handle.close(self)
 end
 
 local handlemeta = {
-	__index = function(k)
+	__index = function(_,k)
 		return rawget(handle,k)
 	end,
-	__newindex = function(k,v)
+	__newindex = function(_,k,v)
 		return nil
 	end
 }
 local function createFakeHandle(handle,mode)
-	return setmetatable({__Real_Handle=handle,__File_Mode=mode},table.copy(handlemeta))
+	local tab = {}
+	tab.__Real_Handle=handle
+	tab.__File_Mode=mode
+	return setmetatable(tab,handlemeta)
 end
 
 function fs.open(path,m)
@@ -334,7 +337,7 @@ function fs.open(path,m)
 		elseif not isDir then
 			return nil, "ENOTDIR", "Parent is a file!"
 		end
-	elseif mode == "r" then
+	elseif m == "r" then
 		if not fs.exists(path) then
 			return nil, "ENOENT", "Tried to read non-existant file!"
 		end

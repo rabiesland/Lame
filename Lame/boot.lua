@@ -8,4 +8,4 @@ local prog,err = load(dat,"KERNEL")
 if not prog then
 	chip.crash(err)
 end
-prog(split[1])
+prog(files.getDiskID(0):sub(28,36)..":"..split[1])

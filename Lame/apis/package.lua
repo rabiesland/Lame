@@ -5,7 +5,7 @@ package.config = [[/
 ?]]
 _G.loaded = {}
 package.loaded = {}
-package.path = "./?.lua;./?/init.lua"
+package.path = _SYSTEM_DISK..":Lame/lib/?.lua;./?.lua;./?/init.lua"
 
 function package.searchpath(name,path,sep,rep)
 	local conf = package.config:gsub("\r",""):split("\n")
