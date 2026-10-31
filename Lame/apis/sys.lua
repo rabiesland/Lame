@@ -13,10 +13,12 @@ function sys.getExtensions()
 end
 
 function sys.hasExtension(ext,ver)
+	apiAssert(ext ~= nil and type(ext) == "string", "Extension has to be string!")
+	apiAssert(ver == nil or type(ver) == "number", "Version has to be number!")
 	if not ver then
-		ver = math.mininteger
+		ver = _G.NEATOAPIS[ext]
 	end
-	if _G.NEATOAPIS[ext] and _G.NEATOAPIS[ext] > ver then
+	if _G.NEATOAPIS[ext] and _G.NEATOAPIS[ext] == ver then
 		return true
 	end
 	return false

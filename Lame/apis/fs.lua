@@ -22,16 +22,16 @@ function _G.parentOfPathExists(path)
 	if #parts == 1 then
 		return false
 	end
-	local last = parts[1]
+	local disk = table.remove(parts,1)
+	local last = ""
 	table.remove(parts)
-	table.remove(parts,1)
 	for _,v in ipairs(parts) do
-		if not fs.isDir(last.."/"..v) then
+		if not fs.isDir(disk..last.."/"..v) then
 			return false
 		end
 		last ..= "/"..v
 	end
-	return true, fs.isDir(last)
+	return true, fs.isDir(disk.."/"..last)
 end
 
 function fs.list(path)
@@ -99,7 +99,7 @@ function fs.resolve(path)
 	local s = path:split(":")
 	local path = s[#s]:gsub(":","")
 	if #s == 1 then
-		s = _SYSTEM_DISK:split("/")[0]:split(":")
+		s = _SYSTEM_DISK:split("/")[1]:split(":")
 		table.insert(s,path)
 	end
 	if #s == 2 then
@@ -174,10 +174,21 @@ function fs.stat(path)
 	return nil, "ENOENT", "File doesn't exist!"
 end
 
-fs.getDisks = files.getDisks
+function fs.getDisks()
+	local ret = {}
+	local int = files.getDisks()
+	for _,i in pairs(int) do
+		local a = files.getDiskID(i):sub(28,36)
+		table.insert(ret,{
+			id=a,
+			slot=i
+		})
+	end
+	return ret
+end
 
 function fs.getPartitions(disk1)
-	apiAssert(type(path) == "string" or type(path) == "number","Path has to be a slot number or disk id!")
+	apiAssert(type(disk1) == "string" or type(disk1) == "number","Path has to be a slot number or disk id!")
 	local disk = tonumber(disk1)
 	if not disk then
 		for _,i in ipairs(files.getDisks()) do
@@ -188,7 +199,7 @@ function fs.getPartitions(disk1)
 		end
 	end
 	if not disk then
-		return nil, "EINVAL", "Disk doesn't exist!"
+		return nil, "ENODEV", "Disk doesn't exist!"
 	end
 	local exists = pcall(files.getDiskID,disk)
 	if not exists then
@@ -219,7 +230,7 @@ local point = {
 }
 
 function fs.getPoint(p)
-	apiAssert(type(path) == "string","Point has to be a string!")
+	apiAssert(type(p) == "string","Point has to be a string!")
 	if point[p] == true then
 		return fs.resolve(CWD)
 	elseif point[p] then
@@ -243,6 +254,9 @@ function handle.read(self,amt)
 	local f = rawget(self,"__Real_Handle")
 	local m = rawget(self,"__File_Mode")
 	local c = rawget(self,"__CLOSED")
+	if not amt then
+		amt = "l"
+	end
 	apiAssert(type(amt) == "number" or (amt == "a" or amt == "l"),"Bad read amount") 
 	apiAssert(m == "r", "Cannot read write handle")
 	apiAssert(not c, "Handle closed!")
@@ -250,16 +264,27 @@ function handle.read(self,amt)
 	if not suc then
 		return nil,"EIO",dat
 	end
-	return dat
+	if amt == "a" then
+		return dat or ""
+	else
+		if dat and #dat == 0 then
+			return nil
+		else
+			return dat
+		end
+	end
+	
 end
 
-function handle.write(self,dat)
+function handle.write(...)
+	local a = {...}
+	local self = table.remove(a,1)
 	local f = rawget(self,"__Real_Handle")
 	local m = rawget(self,"__File_Mode")
 	local c = rawget(self,"__CLOSED")
-	apiAssert(m == "w", "Cannot read write handle")
+	apiAssert(m == "w" or m == "a", "Cannot write read handle")
 	apiAssert(not c, "Handle closed!")
-	local suc,err = pcall(f.write,dat)
+	local suc,err = pcall(f.write,table.concat(a))
 	if not suc then
 		return nil,"EIO",err
 	end
@@ -270,6 +295,9 @@ function handle.seek(self,w,o)
 	local f = rawget(self,"__Real_Handle")
 	local c = rawget(self,"__CLOSED")
 	apiAssert(not c, "Handle closed!")
+	if not o then
+		o = 0
+	end
 	if not w and not o then
 		local suc,pos = pcall(f.seek)
 		if not suc then
@@ -293,7 +321,7 @@ function handle.flush(self)
 	local c = rawget(self,"__CLOSED")
 	apiAssert(not c, "Handle closed!")
 	local suc,err =  pcall(f.flush)
-	if not err then
+	if not suc then
 		return nil,"EIO",err
 	end
 	return true
@@ -303,8 +331,9 @@ function handle.close(self)
 	local f = rawget(self,"__Real_Handle")
 	local c = rawget(self,"__CLOSED")
 	apiAssert(not c, "Handle closed!")
+	pcall(f.flush)
 	local suc,err =  pcall(f.close)
-	if not err then
+	if not suc then
 		return nil,"EIO",err
 	end
 	rawset(self,"__CLOSED",true)

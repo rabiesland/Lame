@@ -1,2 +1,2 @@
 local path = table.concat({...}," ")
-fs.makeDir(getWorkingPath().."/"..path)
+print(fs.makeDir(CWD.."/"..path))

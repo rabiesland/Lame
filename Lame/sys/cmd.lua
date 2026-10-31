@@ -102,9 +102,11 @@ local function runCommand(i)
 	local progPath = resolveProgramPath(prog:lower())
 	local alias = aliasExists(prog:lower())
 	if not progPath and alias then
-		local suc, err = pcall(os.execute,alias,table.unpack(sp))
+		local suc, err,a,b = pcall(os.execute,alias,table.unpack(sp))
 		if not suc then
 			print(err)
+		elseif not err then
+			print(b)
 		end
 	elseif not progPath then
 		print("Bad command or filename - "..prog)
@@ -112,9 +114,11 @@ local function runCommand(i)
 		if progPath:sub(-4) == ".bat" then
 			runBatch(progPath)
 		else
-			local suc, err = pcall(os.execute,progPath,table.unpack(sp))
+			local suc, err,a,b = pcall(os.execute,progPath,table.unpack(sp))
 			if not suc then
 				print(err)
+			elseif not err then
+				print(b)
 			end
 		end
 	end

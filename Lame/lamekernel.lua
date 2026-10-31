@@ -202,6 +202,7 @@ function _G.addProgramToStack(...)
 			e = {},
 			c = progFunc
 		})
+		return true
 	else
 		return nil, "EIO", "Failed to load program "..path.."! Err="..err
 	end
